@@ -1,51 +1,22 @@
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
-
-from browser.dom_watcher import DomWatcher
+from selenium.webdriver.common.by import By
 from browser.element_locator import TraTicketQueryLocators
+import time
 
 
 class TraTicketActions:
     """
-    Encapsulates user-like interactions on the TRA ticket query page.
-    This class performs actions only; it does not manage flow or state.
+    台鐵訂票頁面操作行為封裝
     """
 
-    def __init__(self, driver, watcher: DomWatcher):
+    def __init__(self, driver, watcher):
         self.driver = driver
         self.watcher = watcher
 
     # =========================
-    # 身分證字號
-    # =========================
-    def fill_id_number(self, id_number: str) -> None:
-        by, value = TraTicketQueryLocators.ID_NUMBER_INPUT
-        element = self.watcher.wait_for_visible(by, value)
-        element.clear()
-        element.send_keys(id_number)
-
-    # =========================
-    # 車站選擇
-    # =========================
-    def fill_stations(self, from_station: str, to_station: str) -> None:
-        from_by, from_value = TraTicketQueryLocators.FROM_STATION_INPUT
-        to_by, to_value = TraTicketQueryLocators.TO_STATION_INPUT
-
-        from_input = self.watcher.wait_for_visible(from_by, from_value)
-        from_input.clear()
-        from_input.send_keys(from_station)
-        from_input.send_keys(Keys.TAB)
-
-        to_input = self.watcher.wait_for_visible(to_by, to_value)
-        to_input.clear()
-        to_input.send_keys(to_station)
-        to_input.send_keys(Keys.TAB)
-
-    # =========================
     # 行程類型
     # =========================
-    def select_trip_type(self, one_way: bool = True) -> None:
+    def select_trip_type(self, one_way: bool = True):
         locator = (
             TraTicketQueryLocators.TRIP_TYPE_ONE_WAY
             if one_way
@@ -53,67 +24,219 @@ class TraTicketActions:
         )
         by, value = locator
         element = self.watcher.wait_for_clickable(by, value)
-        element.click()
+        self.driver.execute_script("arguments[0].click();", element)
 
     # =========================
-    # 訂票方式
+    # 訂票方式：依車次
     # =========================
-    def select_booking_by_train_no(self) -> None:
+    def select_booking_by_train_no(self):
         by, value = TraTicketQueryLocators.BOOKING_BY_TRAIN_NO
         element = self.watcher.wait_for_clickable(by, value)
-        element.click()
+        self.driver.execute_script("arguments[0].click();", element)
 
     # =========================
-    # 票數
+    # 身分證字號
     # =========================
-    def select_ticket_count(self, count: int) -> None:
-        if count < 1:
-            raise ValueError("Ticket count must be at least 1")
-
-        by, value = TraTicketQueryLocators.TICKET_COUNT_SELECT
-        select_element = self.watcher.wait_for_visible(by, value)
-        Select(select_element).select_by_value(str(count))
-
-    # =========================
-    # 日期
-    # =========================
-    def fill_date(self, ride_date: str) -> None:
-        """
-        ride_date format: YYYY/MM/DD
-        """
-        by, value = TraTicketQueryLocators.DATE_INPUT
+    def fill_id_number(self, id_number: str):
+        by, value = TraTicketQueryLocators.ID_NUMBER_INPUT
         element = self.watcher.wait_for_visible(by, value)
         element.clear()
-        element.send_keys(ride_date)
-        element.send_keys(Keys.TAB)
+        element.send_keys(id_number)
+
+    # =========================
+    # 起站 / 迄站（autocomplete）
+    # =========================
+    def fill_stations(self, from_station: str, to_station: str):
+        # 起站
+        by, value = TraTicketQueryLocators.FROM_STATION_INPUT
+        from_input = self.watcher.wait_for_visible(by, value)
+        from_input.clear()
+        from_input.send_keys(from_station)
+
+        # 給 autocomplete JS 反應時間
+        time.sleep(0.5)
+
+        # 迄站
+        by, value = TraTicketQueryLocators.TO_STATION_INPUT
+        to_input = self.watcher.wait_for_visible(by, value)
+        to_input.clear()
+        to_input.send_keys(to_station)
+
+        time.sleep(0.5)
+
+    # =========================
+    # 票數（select 或 input，依你 locator）
+    # =========================
+    def select_ticket_count(self, count: int):
+        by, value = TraTicketQueryLocators.TICKET_COUNT_SELECT
+        element = self.watcher.wait_for_presence(by, value)
+
+        tag_name = element.tag_name.lower()
+        if tag_name == "select":
+            Select(element).select_by_value(str(count))
+        else:
+            element.clear()
+            element.send_keys(str(count))
+
+    # =========================
+    # 日期（⚠️ 台鐵 datepicker 一定要用 JS）
+    # =========================
+    def fill_date(self, date_str: str):
+        by, value = TraTicketQueryLocators.DATE_INPUT
+        element = self.watcher.wait_for_presence(by, value)
+
+        self.driver.execute_script(
+            "arguments[0].value = arguments[1];", element, date_str
+        )
+
+        # 觸發 change 事件，避免被 JS 覆寫
+        self.driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('change'));", element
+        )
+
+        time.sleep(0.3)
 
     # =========================
     # 車次
     # =========================
-    def fill_train_no(self, train_no: str) -> None:
+    def fill_train_no(self, train_no: str):
         by, value = TraTicketQueryLocators.TRAIN_NO_INPUT
-        element = self.watcher.wait_for_visible(by, value)
-        element.clear()
-        element.send_keys(train_no)
+        element = self.watcher.wait_for_presence(by, value)
+
+        self.driver.execute_script(
+            "arguments[0].value = arguments[1];",
+            element,
+            train_no
+        )
+
+        self.driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('change'));",
+            element
+        )
+
+    # def fill_train_no(self, train_no: str):
+    #     by, value = TraTicketQueryLocators.TRAIN_NO_INPUT
+    #     element = self.watcher.wait_for_visible(by, value)
+    #     element.clear()
+    #     element.send_keys(train_no)
 
     # =========================
-    # 座位偏好
+    # 座位偏好（目前可不呼叫）
     # =========================
-    def select_seat_preference(self, preference_value: str) -> None:
-        """
-        preference_value depends on site options, e.g.:
-        - ANY
-        - WINDOW
-        - AISLE
-        """
+    def select_seat_preference(self, pref_value: str):
         by, value = TraTicketQueryLocators.SEAT_PREFERENCE_SELECT
-        select_element = self.watcher.wait_for_visible(by, value)
-        Select(select_element).select_by_value(preference_value)
+        element = self.watcher.wait_for_presence(by, value)
+        Select(element).select_by_value(pref_value)
 
     # =========================
-    # 送出訂票
+    # 送出（smoke test 先不呼叫）
     # =========================
-    def submit_booking(self) -> None:
+    def click_submit(self):
         by, value = TraTicketQueryLocators.SUBMIT_BUTTON
         element = self.watcher.wait_for_clickable(by, value)
-        element.click()
+        self.driver.execute_script("arguments[0].click();", element)
+
+
+
+# from selenium.webdriver.support.ui import Select
+# from browser.element_locator import TraTicketQueryLocators
+# from selenium.webdriver.common.by import By
+# import time
+
+# class TraTicketActions:
+#     """
+#     台鐵訂票頁面操作行為封裝
+#     """
+
+#     def __init__(self, driver, watcher):
+#         self.driver = driver
+#         self.watcher = watcher
+
+#     # =========================
+#     # 行程類型
+#     # =========================
+#     def select_trip_type(self, one_way: bool = True):
+#         locator = (
+#             TraTicketQueryLocators.TRIP_TYPE_ONE_WAY
+#             if one_way
+#             else TraTicketQueryLocators.TRIP_TYPE_ROUND_TRIP
+#         )
+#         by, value = locator
+#         element = self.watcher.wait_for_clickable(by, value)
+#         self.driver.execute_script("arguments[0].click();", element)
+
+#     # =========================
+#     # 訂票方式：依車次
+#     # =========================
+#     def select_booking_by_train_no(self):
+#         by, value = TraTicketQueryLocators.BOOKING_BY_TRAIN_NO
+#         element = self.watcher.wait_for_clickable(by, value)
+#         self.driver.execute_script("arguments[0].click();", element)
+
+#     # =========================
+#     # 票數
+#     # =========================
+#     def select_ticket_count(self, count: int):
+#         by, value = TraTicketQueryLocators.TICKET_COUNT_SELECT
+#         element = self.watcher.wait_for_presence(by, value)
+#         Select(element).select_by_value(str(count))
+
+#     # =========================
+#     # 日期（⚠️ 台鐵一定要用 JS）
+#     # =========================
+#     def fill_date(self, date_str: str):
+#         by, value = TraTicketQueryLocators.DATE_INPUT
+#         element = self.watcher.wait_for_presence(by, value)
+
+#         self.driver.execute_script(
+#             "arguments[0].value = arguments[1];", element, date_str
+#         )
+
+#     # =========================
+#     # 車次
+#     # =========================
+#     def fill_train_no(self, train_no: str):
+#         by, value = TraTicketQueryLocators.TRAIN_NO_INPUT
+#         element = self.watcher.wait_for_visible(by, value)
+#         element.clear()
+#         element.send_keys(train_no)
+
+#     # =========================
+#     # 座位偏好
+#     # =========================
+#     def select_seat_preference(self, pref_value: str):
+#         by, value = TraTicketQueryLocators.SEAT_PREFERENCE_SELECT
+#         element = self.watcher.wait_for_presence(by, value)
+#         Select(element).select_by_value(pref_value)
+
+#     # =========================
+#     # 送出（目前 smoke test 不會呼叫）
+#     # =========================
+#     def click_submit(self):
+#         by, value = TraTicketQueryLocators.SUBMIT_BUTTON
+#         element = self.watcher.wait_for_clickable(by, value)
+#         self.driver.execute_script("arguments[0].click();", element)
+
+
+#     def fill_id_number(self, id_number: str):
+#         by, value = TraTicketQueryLocators.ID_NUMBER_INPUT
+#         element = self.watcher.wait_for_visible(by, value)
+#         element.clear()
+#         element.send_keys(id_number)
+
+#     def fill_stations(self, from_station: str, to_station: str):
+#         # 起站
+#         by, value = TraTicketQueryLocators.FROM_STATION_INPUT
+#         from_input = self.watcher.wait_for_visible(by, value)
+#         from_input.clear()
+#         from_input.send_keys(from_station)
+
+#         # 小停一下，避免 autocomplete JS 吃不到值
+#         time.sleep(0.3)
+
+#         # 迄站
+#         by, value = TraTicketQueryLocators.TO_STATION_INPUT
+#         to_input = self.watcher.wait_for_visible(by, value)
+#         to_input.clear()
+#         to_input.send_keys(to_station)
+

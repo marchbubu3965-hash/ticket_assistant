@@ -62,14 +62,15 @@ class TraTicketQueryLocators:
     # 日期 / 車次
     # =========================
     DATE_INPUT = (
-        By.NAME,
-        "rideDate"
+        By.ID,
+        "rideDate1"
     )
 
     TRAIN_NO_INPUT = (
-        By.NAME,
-        "trainNo"
+        By.ID,
+        "trainNoList1"
     )
+
 
     # =========================
     # 座位偏好
