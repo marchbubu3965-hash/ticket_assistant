@@ -2,7 +2,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QPushButton,
     QMessageBox,
@@ -12,21 +11,24 @@ from PySide6.QtWidgets import (
 
 class EmployeeAddDialog(QDialog):
     """
-    新增員工 Dialog
+    新增 / 編輯員工 Dialog
 
     職責：
     - 收集員工資料
     - 基本欄位驗證
-    - 將結果回傳給呼叫者
+    - 不處理任何業務邏輯
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, employee=None):
         super().__init__(parent)
-        self.setWindowTitle("新增員工")
+        self.employee = employee  # ⭐ 是否為編輯模式
+
+        self.setWindowTitle("編輯員工" if employee else "新增員工")
         self.setModal(True)
         self.setMinimumWidth(360)
 
         self._init_ui()
+        self._load_employee()
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -51,7 +53,7 @@ class EmployeeAddDialog(QDialog):
         # ===== Buttons =====
         button_layout = QHBoxLayout()
 
-        self.ok_button = QPushButton("新增")
+        self.ok_button = QPushButton("確認")
         self.cancel_button = QPushButton("取消")
 
         button_layout.addStretch()
@@ -63,6 +65,19 @@ class EmployeeAddDialog(QDialog):
         # ===== Signals =====
         self.ok_button.clicked.connect(self._on_accept)
         self.cancel_button.clicked.connect(self.reject)
+
+    def _load_employee(self):
+        """
+        若為編輯模式，預填資料並鎖定 emp_id
+        """
+        if not self.employee:
+            return
+
+        self.emp_id_input.setText(self.employee.emp_id)
+        self.emp_id_input.setDisabled(True)
+
+        self.name_input.setText(self.employee.name)
+        self.department_input.setText(self.employee.department)
 
     # =========================
     # Event
@@ -81,13 +96,7 @@ class EmployeeAddDialog(QDialog):
             self._error("請輸入部門")
             return
 
-        # ⭐ 對外暴露資料（關鍵）
-        self.emp_id = self.emp_id_input.text().strip()
-        self.name = self.name_input.text().strip()
-        self.department = self.department_input.text().strip()
-
         self.accept()
-
 
     def _error(self, message: str):
         QMessageBox.warning(self, "輸入錯誤", message)
