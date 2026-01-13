@@ -71,10 +71,8 @@ class EmployeeRepository:
                         else None,
                     ),
                 )
-        except sqlite3.IntegrityError as e:
-            raise ValueError(
-                f"Employee with emp_id '{employee.emp_id}' already exists"
-            ) from e
+        except sqlite3.IntegrityError:
+            raise
 
     def get(self, emp_id: str) -> Optional[Employee]:
         """
@@ -131,6 +129,27 @@ class EmployeeRepository:
                 raise ValueError(
                     f"Employee with emp_id '{employee.emp_id}' does not exist"
                 )
+
+    def list_all(self) -> list[Employee]:
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT emp_id, name, department, is_active, hired_date
+                FROM employees
+                ORDER BY emp_id
+                """
+            ).fetchall()
+
+        return [
+            Employee(
+                emp_id=r[0],
+                name=r[1],
+                department=r[2],
+                is_active=bool(r[3]),
+                hired_date=None,
+            )
+            for r in rows
+        ]
 
     def delete(self, emp_id: str) -> None:
         """

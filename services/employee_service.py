@@ -1,4 +1,4 @@
-from domain.employee import Employee
+from domain.employee import Employee , InvalidEmployeeError
 from repository.employee_repository import EmployeeRepository
 from core.exceptions import NotFoundError, ValidationError
 
@@ -19,11 +19,14 @@ class EmployeeService:
         if self.repo.exists(emp_id):
             raise ValidationError(f"Employee {emp_id} already exists")
 
-        employee = Employee(
-            emp_id=emp_id,
-            name=name,
-            department=department,
-        )
+        try:
+            employee = Employee(
+                emp_id=emp_id,
+                name=name,
+                department=department,
+            )
+        except InvalidEmployeeError as e:
+            raise ValidationError(str(e)) from e
 
         self.repo.add(employee)
         return employee
@@ -58,3 +61,17 @@ class EmployeeService:
         updated = employee.deactivate()
         self.repo.update(updated)
         return updated
+    
+    def update_employee(self, employee: Employee) -> Employee:
+        if not self.repo.exists(employee.emp_id):
+            raise NotFoundError(f"Employee {employee.emp_id} not found")
+
+        self.repo.update(employee)
+        return employee
+
+    def delete_employee(self, emp_id: str) -> None:
+        if not self.repo.exists(emp_id):
+            raise NotFoundError(f"Employee {emp_id} not found")
+
+        self.repo.delete(emp_id)
+
