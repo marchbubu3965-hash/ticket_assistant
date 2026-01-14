@@ -14,7 +14,6 @@ class EmployeeRepository:
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
-            # 專案根目錄 / data / employees.db
             base_dir = Path(__file__).resolve().parents[1]
             data_dir = base_dir / "data"
             data_dir.mkdir(exist_ok=True)
@@ -32,6 +31,9 @@ class EmployeeRepository:
         return sqlite3.connect(self.db_path)
 
     def _init_db(self):
+        """
+        初始化資料表（若不存在）
+        """
         with self._get_conn() as conn:
             conn.execute(
                 """
@@ -39,6 +41,7 @@ class EmployeeRepository:
                     emp_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
                     department TEXT NOT NULL,
+                    id_number TEXT NOT NULL,
                     is_active INTEGER NOT NULL,
                     hired_date TEXT
                 )
@@ -46,7 +49,7 @@ class EmployeeRepository:
             )
 
     # =========================
-    # CRUD-like operations
+    # CRUD operations
     # =========================
 
     def add(self, employee: Employee) -> None:
@@ -58,21 +61,29 @@ class EmployeeRepository:
                 conn.execute(
                     """
                     INSERT INTO employees (
-                        emp_id, name, department, is_active, hired_date
-                    ) VALUES (?, ?, ?, ?, ?)
+                        emp_id,
+                        name,
+                        department,
+                        id_number,
+                        is_active,
+                        hired_date
+                    ) VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         employee.emp_id,
                         employee.name,
                         employee.department,
+                        employee.id_number,
                         int(employee.is_active),
                         employee.hired_date.isoformat()
                         if employee.hired_date
                         else None,
                     ),
                 )
-        except sqlite3.IntegrityError:
-            raise
+        except sqlite3.IntegrityError as e:
+            raise ValueError(
+                f"Employee with emp_id '{employee.emp_id}' already exists"
+            ) from e
 
     def get(self, emp_id: str) -> Optional[Employee]:
         """
@@ -81,7 +92,13 @@ class EmployeeRepository:
         with self._get_conn() as conn:
             row = conn.execute(
                 """
-                SELECT emp_id, name, department, is_active, hired_date
+                SELECT
+                    emp_id,
+                    name,
+                    department,
+                    id_number,
+                    is_active,
+                    hired_date
                 FROM employees
                 WHERE emp_id = ?
                 """,
@@ -95,9 +112,41 @@ class EmployeeRepository:
             emp_id=row[0],
             name=row[1],
             department=row[2],
-            is_active=bool(row[3]),
-            hired_date=None,  # 目前先不轉 date，可之後補
+            id_number=row[3],
+            is_active=bool(row[4]),
+            hired_date=None,
         )
+
+    def list_all(self) -> list[Employee]:
+        """
+        取得全部員工
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    emp_id,
+                    name,
+                    department,
+                    id_number,
+                    is_active,
+                    hired_date
+                FROM employees
+                ORDER BY emp_id
+                """
+            ).fetchall()
+
+        return [
+            Employee(
+                emp_id=r[0],
+                name=r[1],
+                department=r[2],
+                id_number=r[3],
+                is_active=bool(r[4]),
+                hired_date=None,
+            )
+            for r in rows
+        ]
 
     def update(self, employee: Employee) -> None:
         """
@@ -110,6 +159,7 @@ class EmployeeRepository:
                 SET
                     name = ?,
                     department = ?,
+                    id_number = ?,
                     is_active = ?,
                     hired_date = ?
                 WHERE emp_id = ?
@@ -117,6 +167,7 @@ class EmployeeRepository:
                 (
                     employee.name,
                     employee.department,
+                    employee.id_number,
                     int(employee.is_active),
                     employee.hired_date.isoformat()
                     if employee.hired_date
@@ -129,27 +180,6 @@ class EmployeeRepository:
                 raise ValueError(
                     f"Employee with emp_id '{employee.emp_id}' does not exist"
                 )
-
-    def list_all(self) -> list[Employee]:
-        with self._get_conn() as conn:
-            rows = conn.execute(
-                """
-                SELECT emp_id, name, department, is_active, hired_date
-                FROM employees
-                ORDER BY emp_id
-                """
-            ).fetchall()
-
-        return [
-            Employee(
-                emp_id=r[0],
-                name=r[1],
-                department=r[2],
-                is_active=bool(r[3]),
-                hired_date=None,
-            )
-            for r in rows
-        ]
 
     def delete(self, emp_id: str) -> None:
         """

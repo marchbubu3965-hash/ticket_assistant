@@ -9,7 +9,7 @@ class EmployeeService:
 
     # ---------- Use Cases ----------
 
-    def hire_employee(self, emp_id: str, name: str, department: str) -> Employee:
+    def hire_employee(self, emp_id: str, name: str, id_number:str, department: str) -> Employee:
         """
         新增員工（入職）
         """
@@ -18,11 +18,15 @@ class EmployeeService:
 
         if self.repo.exists(emp_id):
             raise ValidationError(f"Employee {emp_id} already exists")
+        
+        if not id_number:
+            raise ValidationError("身分證字號為必填")
 
         try:
             employee = Employee(
                 emp_id=emp_id,
                 name=name,
+                id_number=id_number,
                 department=department,
             )
         except InvalidEmployeeError as e:

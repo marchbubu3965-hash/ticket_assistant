@@ -38,14 +38,17 @@ class EmployeeAddDialog(QDialog):
 
         self.emp_id_input = QLineEdit()
         self.name_input = QLineEdit()
+        self.id_number_input = QLineEdit()
         self.department_input = QLineEdit()
 
         self.emp_id_input.setPlaceholderText("例如：E005")
         self.name_input.setPlaceholderText("例如：王小明")
+        self.id_number_input.setPlaceholderText("例如：A123456789")
         self.department_input.setPlaceholderText("例如：IT / HR / Finance")
 
         form.addRow("員工編號：", self.emp_id_input)
         form.addRow("姓名：", self.name_input)
+        form.addRow("身分證字號：", self.id_number_input)
         form.addRow("部門：", self.department_input)
 
         layout.addLayout(form)
@@ -91,7 +94,12 @@ class EmployeeAddDialog(QDialog):
         if not self.name_input.text().strip():
             self._error("請輸入姓名")
             return
-
+        
+        if not self.id_number_input.text().strip():
+            self._error("請輸入身分證字號")
+            return
+        self.id_number = self.id_number_input.text().strip()
+        
         if not self.department_input.text().strip():
             self._error("請輸入部門")
             return
@@ -112,5 +120,6 @@ class EmployeeAddDialog(QDialog):
         return {
             "emp_id": self.emp_id_input.text().strip(),
             "name": self.name_input.text().strip(),
+            "id_number": self.id_number_input.text().strip(),
             "department": self.department_input.text().strip(),
         }

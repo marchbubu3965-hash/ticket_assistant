@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from ui.employee_add_dialog import EmployeeAddDialog
+from ui.employee_edit_dialog import EmployeeEditDialog
+
 
 
 class EmployeeWidget(QWidget):
@@ -26,6 +28,7 @@ class EmployeeWidget(QWidget):
         self.controller = employee_controller
         self._init_ui()
         self.refresh()
+
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -114,6 +117,7 @@ class EmployeeWidget(QWidget):
             self.controller.create(
                 emp_id=data["emp_id"],
                 name=data["name"],
+                id_number=data["id_number"],
                 department=data["department"],
             )
             QMessageBox.information(self, "成功", "員工已新增")
@@ -129,15 +133,17 @@ class EmployeeWidget(QWidget):
 
         try:
             employee = self.controller.get(emp_id)
-            dialog = EmployeeAddDialog(self, employee=employee)
 
+            dialog = EmployeeEditDialog(employee, self)
             if not dialog.exec():
                 return
 
             data = dialog.get_data()
+
             self.controller.update(
-                emp_id=emp_id,
+                emp_id=data["emp_id"],
                 name=data["name"],
+                id_number=data["id_number"],
                 department=data["department"],
             )
 
@@ -146,6 +152,7 @@ class EmployeeWidget(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "錯誤", str(e))
+
 
     def _on_deactivate_employee(self):
         emp_id = self._get_selected_emp_id()

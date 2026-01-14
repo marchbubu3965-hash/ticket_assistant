@@ -1,8 +1,8 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
+import re
 
 
 class InvalidEmployeeError(ValueError):
@@ -25,6 +25,7 @@ class Employee:
 
     emp_id: str
     name: str
+    id_number: str
     department: str
     is_active: bool = True
     hired_date: Optional[date] = None
@@ -35,6 +36,7 @@ class Employee:
         """
         self._validate_emp_id()
         self._validate_name()
+        self._validate_id_number()
         self._validate_department()
 
     # =========================
@@ -61,6 +63,11 @@ class Employee:
 
         if len(self.department) > 50:
             raise InvalidEmployeeError("department length must be <= 50")
+        
+    def _validate_id_number(self):
+        pattern = r"^[A-Z][12]\d{8}$"
+        if not re.match(pattern, self.id_number):
+            raise InvalidEmployeeError("身分證字號格式錯誤")
 
     # =========================
     # Domain behaviors

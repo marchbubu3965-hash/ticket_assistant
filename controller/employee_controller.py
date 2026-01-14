@@ -9,11 +9,12 @@ class EmployeeController:
     # -------------------------
     # Create
     # -------------------------
-    def create(self, emp_id: str, name: str, department: str) -> Employee:
+    def create(self, emp_id: str, name: str, id_number: str, department: str) -> Employee:
         return self.service.hire_employee(
             emp_id=emp_id,
             name=name,
-            department=department
+            id_number=id_number,
+            department=department,
         )
 
     # -------------------------
@@ -32,11 +33,12 @@ class EmployeeController:
         return self.service.deactivate_employee(emp_id)
 
     # 預留：未來編輯資料
-    def update(self, emp_id: str, name: str, department: str) -> Employee:
+    def update(self, emp_id: str, name: str, id_number: str, department: str) -> Employee:
         employee = self.get(emp_id)
         updated = Employee(
             emp_id=employee.emp_id,
             name=name,
+            id_number=id_number,
             department=department,
             is_active=employee.is_active,
             hired_date=employee.hired_date,
