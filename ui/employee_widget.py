@@ -5,19 +5,18 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QListWidget,
+    QListWidgetItem,
     QMessageBox,
 )
 from PySide6.QtCore import Qt
+
 from ui.employee_add_dialog import EmployeeAddDialog
 from ui.employee_edit_dialog import EmployeeEditDialog
-
 
 
 class EmployeeWidget(QWidget):
     """
     員工管理畫面
-
-    職責：
     - 顯示員工清單
     - 提供 CRUD 操作入口
     - 將行為轉交給 Controller
@@ -29,22 +28,19 @@ class EmployeeWidget(QWidget):
         self._init_ui()
         self.refresh()
 
-
     def _init_ui(self):
         layout = QVBoxLayout(self)
 
         # ===== Title =====
         title = QLabel("員工管理")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet(
-            """
+        title.setStyleSheet("""
             QLabel {
                 font-size: 18px;
                 font-weight: bold;
                 padding: 12px;
             }
-            """
-        )
+        """)
         layout.addWidget(title)
 
         # ===== 員工清單 =====
@@ -57,12 +53,12 @@ class EmployeeWidget(QWidget):
         self.refresh_button = QPushButton("重新整理")
         self.add_button = QPushButton("新增")
         self.edit_button = QPushButton("編輯")
-        self.deactivate_button = QPushButton("停用")
+        self.toggle_active_button = QPushButton("停用")  # 動態切換
 
         button_layout.addWidget(self.refresh_button)
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.edit_button)
-        button_layout.addWidget(self.deactivate_button)
+        button_layout.addWidget(self.toggle_active_button)
         button_layout.addStretch()
 
         layout.addLayout(button_layout)
@@ -71,12 +67,12 @@ class EmployeeWidget(QWidget):
         self.refresh_button.clicked.connect(self.refresh)
         self.add_button.clicked.connect(self._on_add_employee)
         self.edit_button.clicked.connect(self._on_edit_employee)
-        self.deactivate_button.clicked.connect(self._on_deactivate_employee)
+        self.toggle_active_button.clicked.connect(self._on_toggle_active)
+        self.employee_list.currentItemChanged.connect(self._on_selection_changed)
 
     # =========================
     # Public API
     # =========================
-
     def refresh(self):
         self.employee_list.clear()
 
@@ -85,26 +81,44 @@ class EmployeeWidget(QWidget):
             return
 
         employees = self.controller.list_all()
-
         if not employees:
             self.employee_list.addItem("（目前沒有員工資料）")
             return
 
         for emp in employees:
             status = "在職" if emp.is_active else "停用"
-            self.employee_list.addItem(
-                f"{emp.emp_id} | {emp.name} | {emp.department} | {status}"
-            )
+            item_text = f"{emp.emp_id} | {emp.name} | {emp.department} | {status}"
+
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.UserRole, emp)
+            self.employee_list.addItem(item)
+
+        self.toggle_active_button.setEnabled(False)
+
+        # 選中第一筆
+        if self.employee_list.count() > 0:
+            self.employee_list.setCurrentRow(0)
+
+    # =========================
+    # Helpers
+    # =========================
+    def _get_selected_employee(self):
+        item = self.employee_list.currentItem()
+        if not item:
+            return None
+        return item.data(Qt.UserRole)
 
     # =========================
     # Event Handlers
     # =========================
+    def _on_selection_changed(self):
+        emp = self._get_selected_employee()
+        if not emp:
+            self.toggle_active_button.setEnabled(False)
+            return
 
-    def _get_selected_emp_id(self) -> str | None:
-        item = self.employee_list.currentItem()
-        if not item:
-            return None
-        return item.text().split("|")[0].strip()
+        self.toggle_active_button.setEnabled(True)
+        self.toggle_active_button.setText("停用" if emp.is_active else "啟用")
 
     def _on_add_employee(self):
         dialog = EmployeeAddDialog(self)
@@ -126,22 +140,19 @@ class EmployeeWidget(QWidget):
             QMessageBox.critical(self, "錯誤", str(e))
 
     def _on_edit_employee(self):
-        emp_id = self._get_selected_emp_id()
-        if not emp_id:
+        emp = self._get_selected_employee()
+        if not emp:
             QMessageBox.warning(self, "提醒", "請先選擇員工")
             return
 
         try:
-            employee = self.controller.get(emp_id)
-
-            dialog = EmployeeEditDialog(employee, self)
+            dialog = EmployeeEditDialog(emp, self)
             if not dialog.exec():
                 return
 
             data = dialog.get_data()
-
-            self.controller.update(
-                emp_id=data["emp_id"],
+            self.controller.update_info(
+                emp_id=emp.emp_id,
                 name=data["name"],
                 id_number=data["id_number"],
                 department=data["department"],
@@ -153,16 +164,19 @@ class EmployeeWidget(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "錯誤", str(e))
 
-
-    def _on_deactivate_employee(self):
-        emp_id = self._get_selected_emp_id()
-        if not emp_id:
-            QMessageBox.warning(self, "提醒", "請先選擇員工")
+    def _on_toggle_active(self):
+        emp = self._get_selected_employee()
+        if not emp:
             return
 
         try:
-            self.controller.deactivate(emp_id)
-            QMessageBox.information(self, "完成", f"員工 {emp_id} 已停用")
+            if emp.is_active:
+                self.controller.deactivate(emp.emp_id)
+                QMessageBox.information(self, "完成", "員工已停用")
+            else:
+                self.controller.activate(emp.emp_id)
+                QMessageBox.information(self, "完成", "員工已啟用")
+
             self.refresh()
         except Exception as e:
             QMessageBox.critical(self, "錯誤", str(e))

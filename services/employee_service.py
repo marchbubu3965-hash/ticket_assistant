@@ -1,4 +1,4 @@
-from domain.employee import Employee , InvalidEmployeeError
+from domain.employee import Employee
 from repository.employee_repository import EmployeeRepository
 from core.exceptions import NotFoundError, ValidationError
 
@@ -7,75 +7,69 @@ class EmployeeService:
     def __init__(self, repo: EmployeeRepository):
         self.repo = repo
 
-    # ---------- Use Cases ----------
-
-    def hire_employee(self, emp_id: str, name: str, id_number:str, department: str) -> Employee:
-        """
-        新增員工（入職）
-        """
-        if not emp_id or not name:
-            raise ValidationError("emp_id and name are required")
+    def hire_employee(self, emp_id: str, name: str, id_number: str, department: str) -> Employee:
+        if not emp_id or not name or not id_number:
+            raise ValidationError("emp_id, name, id_number are required")
 
         if self.repo.exists(emp_id):
             raise ValidationError(f"Employee {emp_id} already exists")
-        
-        if not id_number:
-            raise ValidationError("身分證字號為必填")
 
-        try:
-            employee = Employee(
-                emp_id=emp_id,
-                name=name,
-                id_number=id_number,
-                department=department,
-            )
-        except InvalidEmployeeError as e:
-            raise ValidationError(str(e)) from e
+        employee = Employee(
+            emp_id=emp_id,
+            name=name,
+            id_number=id_number,
+            department=department,
+        )
 
         self.repo.add(employee)
         return employee
 
     def get_employee(self, emp_id: str) -> Employee:
-        """
-        查詢單一員工
-        """
         employee = self.repo.get(emp_id)
-        if employee is None:
+        if not employee:
             raise NotFoundError(f"Employee {emp_id} not found")
         return employee
 
     def list_employees(self, active_only: bool = False) -> list[Employee]:
-        """
-        查詢員工清單
-        """
         employees = self.repo.list_all()
-        if active_only:
-            employees = [e for e in employees if e.is_active]
-        return employees
+        return [e for e in employees if e.is_active] if active_only else employees
 
-    def deactivate_employee(self, emp_id: str) -> Employee:
-        """
-        員工離職 / 停用
-        """
+    def update_employee_info(
+        self,
+        emp_id: str,
+        name: str,
+        id_number: str,
+        department: str,
+    ) -> Employee:
         employee = self.get_employee(emp_id)
 
+        updated = Employee(
+            emp_id=employee.emp_id,
+            name=name,
+            id_number=id_number,
+            department=department,
+            is_active=employee.is_active,
+        )
+
+        self.repo.update(updated)
+        return updated
+
+    def deactivate_employee(self, emp_id: str) -> Employee:
+        employee = self.get_employee(emp_id)
         if not employee.is_active:
-            raise ValidationError(f"Employee {emp_id} is already inactive")
+            raise ValidationError("Employee already inactive")
 
         updated = employee.deactivate()
         self.repo.update(updated)
         return updated
-    
-    def update_employee(self, employee: Employee) -> Employee:
-        if not self.repo.exists(employee.emp_id):
-            raise NotFoundError(f"Employee {employee.emp_id} not found")
 
-        self.repo.update(employee)
-        return employee
+    def activate_employee(self, emp_id: str) -> Employee:
+        employee = self.get_employee(emp_id)
+        if employee.is_active:
+            raise ValidationError("Employee already active")
 
-    def delete_employee(self, emp_id: str) -> None:
-        if not self.repo.exists(emp_id):
-            raise NotFoundError(f"Employee {emp_id} not found")
+        updated = employee.activate()
+        self.repo.update(updated)
+        return updated
 
-        self.repo.delete(emp_id)
 

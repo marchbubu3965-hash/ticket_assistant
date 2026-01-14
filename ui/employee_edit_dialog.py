@@ -85,6 +85,6 @@ class EmployeeEditDialog(QDialog):
         return {
             "emp_id": self.employee.emp_id,
             "name": self.name_input.text().strip(),
-            "department": self.department_input.text().strip(),
             "id_number": self.id_number_input.text().strip(),
+            "department": self.department_input.text().strip(),
         }

@@ -83,6 +83,7 @@ class Employee:
         return Employee(
             emp_id=self.emp_id,
             name=self.name,
+            id_number=self.id_number,
             department=self.department,
             is_active=False,
             hired_date=self.hired_date,
@@ -98,6 +99,7 @@ class Employee:
         return Employee(
             emp_id=self.emp_id,
             name=self.name,
+            id_number=self.id_number,
             department=self.department,
             is_active=True,
             hired_date=self.hired_date,
