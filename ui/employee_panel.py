@@ -5,37 +5,58 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from controller.employee_controller import EmployeeController
+from app_context.employee_selection import EmployeeSelectionContext
+
 from ui.employee_widget import EmployeeWidget
 from ui.employee_add_dialog import EmployeeAddDialog
-from controller.employee_controller import EmployeeController
 
 
 class EmployeePanel(QWidget):
-    def __init__(self, controller: EmployeeController):
-        super().__init__()
+    """
+    員工管理主面板
+    - 包含新增員工
+    - 包含員工清單（EmployeeWidget）
+    - 將員工選取狀態寫入 EmployeeSelectionContext
+    """
+
+    def __init__(
+        self,
+        controller: EmployeeController,
+        employee_selection: EmployeeSelectionContext,
+        parent=None,
+    ):
+        super().__init__(parent)
         self.controller = controller
+        self.employee_selection = employee_selection
+        self.on_employee_confirmed = None
         self._init_ui()
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
 
-        # 員工清單 Widget
-        self.employee_widget = EmployeeWidget(self.controller)
-
-        # 新增按鈕
+        # ===== 新增員工按鈕 =====
         add_btn = QPushButton("新增員工")
         add_btn.clicked.connect(self._on_add_employee)
+
+        # ===== 員工清單 Widget =====
+        
+        self.employee_widget = EmployeeWidget(
+            employee_controller=self.controller,
+            employee_selection=self.employee_selection,
+            parent=self,
+        )
+        self.employee_widget.on_employee_confirmed = self._on_employee_confirmed
 
         layout.addWidget(add_btn)
         layout.addWidget(self.employee_widget)
 
-        # 初始化時先載入資料
+        # 初始載入
         self.employee_widget.refresh()
 
     # =========================
     # Slots
     # =========================
-
     def _on_add_employee(self):
         dialog = EmployeeAddDialog(self)
 
@@ -48,98 +69,20 @@ class EmployeePanel(QWidget):
             self.controller.create(
                 emp_id=data["emp_id"],
                 name=data["name"],
+                id_number=data["id_number"],
                 department=data["department"],
             )
+
+            QMessageBox.information(self, "成功", "員工已新增")
             self.employee_widget.refresh()
 
         except Exception as e:
             QMessageBox.critical(self, "錯誤", str(e))
 
-
-
-
-# from PyQt5.QtWidgets import (
-#     QWidget, QVBoxLayout, QHBoxLayout,
-#     QLabel, QLineEdit, QPushButton, QMessageBox
-# )
-
-# from core.controller import EmployeeController
-# from core.exceptions import ValidationError, NotFoundError
-
-
-# class EmployeePanel(QWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         self.controller = EmployeeController()
-#         self._build_ui()
-
-#     def _build_ui(self):
-#         layout = QVBoxLayout()
-
-#         self.emp_id_input = QLineEdit()
-#         self.emp_id_input.setPlaceholderText("Employee ID")
-
-#         self.name_input = QLineEdit()
-#         self.name_input.setPlaceholderText("Name")
-
-#         self.dept_input = QLineEdit()
-#         self.dept_input.setPlaceholderText("Department")
-
-#         layout.addWidget(QLabel("Employee ID"))
-#         layout.addWidget(self.emp_id_input)
-#         layout.addWidget(QLabel("Name"))
-#         layout.addWidget(self.name_input)
-#         layout.addWidget(QLabel("Department"))
-#         layout.addWidget(self.dept_input)
-
-#         btn_layout = QHBoxLayout()
-
-#         hire_btn = QPushButton("Hire")
-#         hire_btn.clicked.connect(self.hire_employee)
-
-#         deactivate_btn = QPushButton("Deactivate")
-#         deactivate_btn.clicked.connect(self.deactivate_employee)
-
-#         get_btn = QPushButton("Get")
-#         get_btn.clicked.connect(self.get_employee)
-
-#         btn_layout.addWidget(hire_btn)
-#         btn_layout.addWidget(deactivate_btn)
-#         btn_layout.addWidget(get_btn)
-
-#         layout.addLayout(btn_layout)
-#         self.setLayout(layout)
-
-#     def hire_employee(self):
-#         try:
-#             emp = self.controller.hire_employee(
-#                 self.emp_id_input.text(),
-#                 self.name_input.text(),
-#                 self.dept_input.text()
-#             )
-#             QMessageBox.information(self, "Success", f"Hired: {emp}")
-#         except ValidationError as e:
-#             QMessageBox.warning(self, "Error", str(e))
-
-#     def deactivate_employee(self):
-#         try:
-#             emp = self.controller.deactivate_employee(
-#                 self.emp_id_input.text()
-#             )
-#             QMessageBox.information(self, "Success", f"Deactivated: {emp.emp_id}")
-#         except NotFoundError as e:
-#             QMessageBox.warning(self, "Error", str(e))
-
-#     def get_employee(self):
-#         try:
-#             emp = self.controller.get_employee(
-#                 self.emp_id_input.text()
-#             )
-#             QMessageBox.information(
-#                 self,
-#                 "Employee",
-#                 f"{emp}\nActive: {emp.is_active}"
-#             )
-#         except NotFoundError as e:
-#             QMessageBox.warning(self, "Error", str(e))
+    def _on_employee_confirmed(self):
+        """
+        員工被雙擊確認
+        交給 MainWindow（往上冒泡）
+        """
+        if hasattr(self, "on_employee_confirmed"):
+            self.on_employee_confirmed()
