@@ -14,6 +14,8 @@ from controller.ticket_controller import TicketController
 from ui.employee_panel import EmployeePanel
 from ui.ticket_panel import TicketPanel
 from app_context.employee_selection import EmployeeSelectionContext
+from repository.station_repository import StationRepository
+from controller.station_controller import StationController
 
 
 class MainWindow(QMainWindow):
@@ -39,6 +41,8 @@ class MainWindow(QMainWindow):
 
         # ---- Shared Context ----
         self.employee_selection = EmployeeSelectionContext()
+        station_repo = StationRepository()
+        self.station_controller = StationController(station_repo)
 
     # =========================
     # UI
@@ -67,7 +71,7 @@ class MainWindow(QMainWindow):
 
         self.ticket_panel = TicketPanel(
             ticket_controller=self.ticket_controller,
-            employee_controller=self.employee_controller,
+            station_controller=self.station_controller,
             employee_selection=self.employee_selection,
         )
 
