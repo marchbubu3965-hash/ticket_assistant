@@ -1,12 +1,12 @@
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from browser.element_locator import TraTicketQueryLocators
 import time
 
-
 class TraTicketActions:
     """
-    台鐵訂票頁面操作行為封裝
+    台鐵訂票頁面操作行為封裝（⚠️ 必須模擬人類輸入節奏）
     """
 
     def __init__(self, driver, watcher):
@@ -14,17 +14,29 @@ class TraTicketActions:
         self.watcher = watcher
 
     # =========================
+    # 共用：人類輸入
+    # =========================
+    def _human_input(self, element, text: str, delay: float = 0.15):
+        time.sleep(1)
+        element.clear()
+        time.sleep(delay)
+
+        for ch in text:
+            element.send_keys(ch)
+            time.sleep(delay)
+
+        element.send_keys(Keys.TAB)
+        time.sleep(delay)
+
+    # =========================
     # 行程類型
     # =========================
     def select_trip_type(self, one_way: bool = True):
-        locator = (
-            TraTicketQueryLocators.TRIP_TYPE_ONE_WAY
-            if one_way
-            else TraTicketQueryLocators.TRIP_TYPE_ROUND_TRIP
-        )
+        locator = TraTicketQueryLocators.TRIP_TYPE_ONE_WAY if one_way else TraTicketQueryLocators.TRIP_TYPE_ROUND_TRIP
         by, value = locator
         element = self.watcher.wait_for_clickable(by, value)
         self.driver.execute_script("arguments[0].click();", element)
+        time.sleep(0.3)
 
     # =========================
     # 訂票方式：依車次
@@ -33,6 +45,7 @@ class TraTicketActions:
         by, value = TraTicketQueryLocators.BOOKING_BY_TRAIN_NO
         element = self.watcher.wait_for_clickable(by, value)
         self.driver.execute_script("arguments[0].click();", element)
+        time.sleep(1)  # 等待表單更新
 
     # =========================
     # 身分證字號
@@ -40,98 +53,57 @@ class TraTicketActions:
     def fill_id_number(self, id_number: str):
         by, value = TraTicketQueryLocators.ID_NUMBER_INPUT
         element = self.watcher.wait_for_visible(by, value)
-        element.clear()
-        element.send_keys(id_number)
+        self._human_input(element, id_number)
 
     # =========================
-    # 起站 / 迄站（autocomplete）
+    # 起站 / 迄站
     # =========================
     def fill_stations(self, from_station: str, to_station: str):
-        # 起站
         by, value = TraTicketQueryLocators.FROM_STATION_INPUT
         from_input = self.watcher.wait_for_visible(by, value)
-        from_input.clear()
-        from_input.send_keys(from_station)
-
-        # 給 autocomplete JS 反應時間
+        self._human_input(from_input, from_station, delay=0.1)
         time.sleep(0.5)
 
-        # 迄站
         by, value = TraTicketQueryLocators.TO_STATION_INPUT
         to_input = self.watcher.wait_for_visible(by, value)
-        to_input.clear()
-        to_input.send_keys(to_station)
-
+        self._human_input(to_input, to_station, delay=0.1)
         time.sleep(0.5)
 
     # =========================
-    # 票數（select 或 input，依你 locator）
+    # 票數
     # =========================
     def select_ticket_count(self, count: int):
         by, value = TraTicketQueryLocators.TICKET_COUNT_SELECT
-        element = self.watcher.wait_for_presence(by, value)
-
-        tag_name = element.tag_name.lower()
-        if tag_name == "select":
-            Select(element).select_by_value(str(count))
-        else:
-            element.clear()
-            element.send_keys(str(count))
+        element = self.watcher.wait_for_visible(by, value)
+        element.clear()
+        time.sleep(0.2)
+        element.send_keys(str(count))
+        element.send_keys(Keys.TAB)
+        time.sleep(0.3)
 
     # =========================
-    # 日期（⚠️ 台鐵 datepicker 一定要用 JS）
+    # 日期
     # =========================
     def fill_date(self, date_str: str):
         by, value = TraTicketQueryLocators.DATE_INPUT
-        element = self.watcher.wait_for_presence(by, value)
-
-        self.driver.execute_script(
-            "arguments[0].value = arguments[1];", element, date_str
-        )
-
-        # 觸發 change 事件，避免被 JS 覆寫
-        self.driver.execute_script(
-            "arguments[0].dispatchEvent(new Event('change'));", element
-        )
-
-        time.sleep(0.3)
+        element = self.watcher.wait_for_visible(by, value)
+        self.driver.execute_script("arguments[0].value = arguments[1];", element, date_str)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", element)
+        time.sleep(1)
 
     # =========================
     # 車次
     # =========================
-    def fill_train_no(self, train_no: str):
-        by, value = TraTicketQueryLocators.TRAIN_NO_INPUT
-        element = self.watcher.wait_for_presence(by, value)
-
-        self.driver.execute_script(
-            "arguments[0].value = arguments[1];",
-            element,
-            train_no
-        )
-
-        self.driver.execute_script(
-            "arguments[0].dispatchEvent(new Event('change'));",
-            element
-        )
-
-    # def fill_train_no(self, train_no: str):
-    #     by, value = TraTicketQueryLocators.TRAIN_NO_INPUT
-    #     element = self.watcher.wait_for_visible(by, value)
-    #     element.clear()
-    #     element.send_keys(train_no)
+    def fill_train_no(self, train_no: str, index: int = 0):
+        by, value = TraTicketQueryLocators.TRAIN_NO_INPUT_BY_INDEX(index)
+        element = self.watcher.wait_for_visible(by, value)
+        self._human_input(element, train_no, delay=0.12)
 
     # =========================
-    # 座位偏好（目前可不呼叫）
-    # =========================
-    def select_seat_preference(self, pref_value: str):
-        by, value = TraTicketQueryLocators.SEAT_PREFERENCE_SELECT
-        element = self.watcher.wait_for_presence(by, value)
-        Select(element).select_by_value(pref_value)
-
-    # =========================
-    # 送出（smoke test 先不呼叫）
+    # 送出
     # =========================
     def click_submit(self):
         by, value = TraTicketQueryLocators.SUBMIT_BUTTON
         element = self.watcher.wait_for_clickable(by, value)
         self.driver.execute_script("arguments[0].click();", element)
+        time.sleep(1)
