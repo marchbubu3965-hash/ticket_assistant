@@ -1,5 +1,6 @@
 import sys
 from PySide6.QtWidgets import QApplication
+from db.database import init_db
 
 
 def main():
@@ -14,6 +15,7 @@ def main():
 
 
 if __name__ == "__main__":
+    init_db()
     main()
 
 

@@ -88,7 +88,7 @@ class StationAutoComplete(QWidget):
         self.stationSelected.emit(station)
 
         # ⭐ 記錄最近使用
-        self.controller.record_recent(station)
+        # self.controller.record_recent(station)
 
     # =========================
     # Public API
