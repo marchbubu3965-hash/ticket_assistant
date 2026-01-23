@@ -13,6 +13,8 @@ from controller.ticket_controller import TicketController
 
 from ui.employee_panel import EmployeePanel
 from ui.ticket_panel import TicketPanel
+from ui.ticket_request_log_panel import TicketRequestLogPanel
+
 from app_context.employee_selection import EmployeeSelectionContext
 from repository.station_repository import StationRepository
 from controller.station_controller import StationController
@@ -56,6 +58,7 @@ class MainWindow(QMainWindow):
         self.sidebar.setFixedWidth(180)
         self.sidebar.addItem("員工管理")
         self.sidebar.addItem("台鐵訂票")
+        self.sidebar.addItem("訂票請求紀錄")
 
         # -------- Pages --------
         self.pages = QStackedWidget()
@@ -64,10 +67,7 @@ class MainWindow(QMainWindow):
             controller=self.employee_controller,
             employee_selection=self.employee_selection,
         )
-
-        self.employee_panel.on_employee_confirmed = (
-            self._go_to_ticket_page
-        )
+        self.employee_panel.on_employee_confirmed = self._go_to_ticket_page
 
         self.ticket_panel = TicketPanel(
             ticket_controller=self.ticket_controller,
@@ -75,8 +75,11 @@ class MainWindow(QMainWindow):
             employee_selection=self.employee_selection,
         )
 
-        self.pages.addWidget(self.employee_panel)  # index 0
-        self.pages.addWidget(self.ticket_panel)    # index 1
+        self.ticket_request_log_panel = TicketRequestLogPanel()
+
+        self.pages.addWidget(self.employee_panel)            # index 0
+        self.pages.addWidget(self.ticket_panel)              # index 1
+        self.pages.addWidget(self.ticket_request_log_panel)  # index 2
 
         # -------- Wiring --------
         self.sidebar.currentRowChanged.connect(self.pages.setCurrentIndex)
@@ -85,7 +88,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar)
         layout.addWidget(self.pages)
         self.setCentralWidget(root)
-        
 
     def _go_to_ticket_page(self):
         """
@@ -93,4 +95,3 @@ class MainWindow(QMainWindow):
         """
         self.pages.setCurrentIndex(1)
         self.sidebar.setCurrentRow(1)
-

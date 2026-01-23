@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate, QTime
 from ui.station_autocomplete import StationAutoComplete
+from datetime import datetime
 
 
 class TicketPanel(QWidget):
@@ -123,11 +124,10 @@ class TicketPanel(QWidget):
         self.schedule_time_edit.setTime(QTime(0, 0))
         self.schedule_time_edit.setEnabled(False)
 
-        # Checkbox 控制是否啟用日期/時間選擇
         self.schedule_checkbox.stateChanged.connect(
             lambda state: (
                 self.schedule_date_edit.setEnabled(state == 2),
-                self.schedule_time_edit.setEnabled(state == 2)
+                self.schedule_time_edit.setEnabled(state == 2),
             )
         )
 
@@ -181,6 +181,10 @@ class TicketPanel(QWidget):
             self.train_no_3.text().strip(),
         ]
 
+        if not any(train_nos):
+            QMessageBox.warning(self, "錯誤", "至少需輸入一個車次")
+            return
+
         one_way = self.one_way_radio.isChecked()
         ticket_count = self.ticket_count.value()
         date_str = self.date_input.date().toString("yyyy-MM-dd")
@@ -190,8 +194,11 @@ class TicketPanel(QWidget):
         if schedule_enabled:
             schedule_date = self.schedule_date_edit.date().toPython()
             schedule_time = self.schedule_time_edit.time().toPython()
-            from datetime import datetime
             schedule_at = datetime.combine(schedule_date, schedule_time)
+
+            if schedule_at <= datetime.now():
+                QMessageBox.warning(self, "錯誤", "排程時間必須晚於現在")
+                return
         else:
             schedule_at = None
 
@@ -204,7 +211,7 @@ class TicketPanel(QWidget):
                 train_nos=train_nos,
                 ticket_count=ticket_count,
                 one_way=one_way,
-                schedule_at=schedule_at,  # 新增排程參數
+                schedule_at=schedule_at,
             )
 
             QMessageBox.information(self, "完成", "訂票流程已啟動")
